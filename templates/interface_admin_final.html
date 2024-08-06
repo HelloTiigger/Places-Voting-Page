@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Admin Page</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Admin Page</h1>
+    <div id="chart-container" style="position: relative; height:40vh; width:80vw">
+        <canvas id="chart"></canvas>
+    </div>
+    <div>
+        <button onclick="getTopDestinations()">Get Top Destinations</button>
+        <h2>Filter Destinations</h2>
+        <label for="country">Country:</label>
+        <select id="country">
+            <option value="" disabled selected>Please select a country</option>
+            <option value="United States">United States</option>
+            <option value="Canada">Canada</option>
+            <option value="Singapore">Singapore</option>
+            <option value="Indonesia">Indonesia</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <!-- Add more options as needed -->
+        </select>
+        <label for="destinationType">Destination Type:</label>
+        <select id="destinationType">
+            <option value="" disabled selected>Please select one</option>
+            <option value="Natural Attractions">Natural Attractions</option>
+            <option value="Cultural and Historical Sites">Cultural and Historical Sites</option>
+            <option value="Architectural Wonders">Architectural Wonders</option>
+            <option value="Entertainment Venues">Entertainment Venues</option>
+            <option value="Shopping and Markets">Shopping and Markets</option>
+            <option value="Educational Institutions">Educational Institutions</option>
+            <!-- Add more options as needed -->
+        </select>
+        <button id="filterButton">Filter</button>
+        <button onclick="clearFilters()">Clear Filters</button>
+    </div>
+
+    <script>
+        var allDestinations = [];
+        var topDestinations = [];
+        var chart = null;
+        
+        $(document).ready(function() {
+            getTopDestinations();
+            fetchDestinations();
+
+            $('#filterButton').click(applyFilters);
+        });        
+        
+        function getTopDestinations() {
+            $.get("/admin/top_destinations", function(data) {
+                console.log(data);
+                topDestinations = data.topDestinations;
+                fetchDestinations(); 
+                updateChart(topDestinations); // Update the chart with the top destinations
+            });
+        }
+
+        function fetchDestinations() {
+            fetch("/get_destinations")
+            .then(response => response.json())
+            .then(data => {
+                allDestinations = data; // Store fetched destinations globally
+            })
+            .catch(error => console.error('Error fetching destinations:', error));
+        }
+
+
+        function applyFilters() {
+            console.log('applyFilters called');
+            const country = document.getElementById('country').value;
+            const destinationType = document.getElementById('destinationType').value
+
+            console.log('Country:', country);
+            console.log('Destination Type:', destinationType);
+
+            var filteredDestinations = allDestinations.filter(dest => {
+
+                var countryMatch = !country || dest[1] === country;
+                var typeMatch = !destinationType || dest[2] === destinationType;
+
+                return countryMatch && typeMatch;
+            });
+
+
+            updateChart(filteredDestinations.slice(0, 5)); // Update the chart with the top 5 filtered destinations
+        }
+
+        function clearFilters() {
+            $('#country').val("");
+            $('#destinationType').val("");
+            updateChart(topDestinations); // Update the chart with the top destinations
+        }
+
+        function updateChart(destinations) {
+            if (chart) {
+                chart.destroy();
+            }
+            var ctx = document.getElementById('chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: destinations.map(item => item[0] + " - " + item[1] + " - " + item[2]), // Destination name, country, and type
+                    datasets: [{
+                        label: '# of Votes',
+                        data: destinations.map(item => item[4]), // Vote count
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>

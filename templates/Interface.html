@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destination Voting System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .submit-btn {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: blue;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            float: right; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to the Destination Voting System</h1>
+
+    <h2 id="user-greeting"></h2> <!-- Display user ID here -->
+
+    <h2>Enter or get your user ID</h2>
+    <form id="user-id-form" onsubmit="submitUserId(); return false;">
+        <label for="user-id">Please enter your User ID:</label><br>
+        <input type="text" id="user-id" name="user-id"><br>
+        <input type="submit" value="Submit">
+        <button type="button" onclick="getUserID()" style="margin-left: 10px;">Get User ID</button>
+        <button type="button" onclick="getVotingHistory()" style="margin-left: 10px;">View Voting History</button>
+    </form>
+    
+    
+    
+    <h2>Add New Destination</h2>
+    <form id="addDestinationForm">
+        <label for="destination-name">Destination Name:</label><br>
+        <input type="text" id="destination-name" name="destination-name" placeholder="Type Destination..." required><br>
+
+        <label for="country">Country:</label><br>
+        <input type="text" id="country" name="country" placeholder="Type country..." required><br>
+
+        <label for="destination-type">Destination Type:</label><br>
+        <select id="destination-type" name="destination-type" required>
+            <option value="" disabled selected>Please select one</option>
+            <option value="Natural Attractions">Natural Attractions</option>
+            <option value="Cultural and Historical Sites">Cultural and Historical Sites</option>
+            <option value="Architectural Wonders">Architectural Wonders</option>
+            <option value="Entertainment Venues">Entertainment Venues</option>
+            <option value="Shopping and Markets">Shopping and Markets</option>
+            <option value="Educational Institutions">Educational Institutions</option>
+        </select><br>
+
+        <label for="review">Review:</label><br>
+        <textarea id="review" name="review" rows="4" cols="50"></textarea><br>
+
+        <button type="button" onclick="submitDestination()">Add Destination</button>
+    </form>
+
+    <h2>Destination Voting Table</h2>
+
+    <h2>Filter By</h2>
+    <label for="country-filter">Country:</label>
+    <!--input type="text" id="country-filter" placeholder="Type country..." oninput="applyFilters()" -->
+    <select id="country-filter" onchange="applyFilters()">
+        <option value="" disabled selected>Please select a country</option>
+        <option value="United States">United States</option>
+        <option value="Canada">Canada</option>
+        <option value="Singapore">Singapore</option>
+        <option value="Indonesia">Indonesia</option>
+        <option value="United Kingdom">United Kingdom</option>
+        <!-- Add more countries as needed -->
+    </select>
+
+    <label for="type-filter">Type:</label>
+    <select id="type-filter" onchange="applyFilters()">
+        <option value="" disabled selected>Please select one</option>
+        <option value="Natural Attractions">Natural Attractions</option>
+        <option value="Cultural and Historical Sites">Cultural and Historical Sites</option>
+        <option value="Architectural Wonders">Architectural Wonders</option>
+        <option value="Entertainment Venues">Entertainment Venues</option>
+        <option value="Shopping and Markets">Shopping and Markets</option>
+        <option value="Educational Institutions">Educational Institutions</option>
+    </select>
+    
+    <button onclick="clearFilters()">Clear Filters</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Destination</th>
+                <th>Country</th>
+                <th>Type</th>
+                <th>Total Votes</th>
+                <th>Vote!</th>
+            </tr>
+        </thead>
+        <tbody id="destinations-list">
+            <!-- Dynamic content will be inserted here -->
+        </tbody>
+    </table>
+
+    <script>
+        let allDestinations = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const userId = localStorage.getItem('userId');
+            if (userId) {
+                updateUserGreeting(userId);
+            }
+            fetchDestinations();
+        });
+
+        function getUserID() {
+            fetch('/get_user_id', {
+                method: 'GET',
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                alert(`Your User ID is: ${data.user_id}`);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Error getting User ID.');
+            });
+        }
+
+        function submitUserId() {
+            const userId = document.getElementById('user-id').value;
+            const data = { user_id: userId };
+            
+            // Print user id to check
+            console.log('User ID submitted:', userId)
+
+            fetch('/userid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                alert('User ID submitted successfully!');
+                document.getElementById('user-id-form').reset();
+                
+                // Save userid locally
+                localStorage.setItem('userId', userId);
+
+                updateUserGreeting(userId);
+        
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Error submitting user ID.');
+            });
+        }
+        
+    
+        function updateUserGreeting(userId) {
+            const greetingElement = document.getElementById('user-greeting');
+            greetingElement.textContent = `Hello, user id ${userId}`;
+        }
+        
+        // Function to submit destination
+        function submitDestination() {
+            const userId = localStorage.getItem('userId');
+            const destinationName = document.getElementById('destination-name').value;
+            const countryName = document.getElementById('country').value;
+            const destinationType = document.getElementById('destination-type').value;
+            const destinationReview = document.getElementById('review').value;
+
+            const data = {
+                user_id: userId,
+                name: destinationName,
+                country: countryName,
+                destination_type: destinationType,
+                review: destinationReview
+            };
+
+            fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                alert('Destination added successfully!');
+                fetchDestinations();
+                document.getElementById('addDestinationForm').reset();
+                document.getElementById('destination-type').value = "Please select one";
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Error adding destination.');
+            });
+        }
+
+        function fetchDestinations() {
+            fetch('/get_destinations')
+            .then(response => response.json())
+            .then(data => {
+                allDestinations = data; // Store fetched destinations globally
+                updateDestinationTable(allDestinations); // Update the table with all destinations
+            })
+            .catch(error => console.error('Error fetching destinations:', error));
+        }
+
+        function applyFilters() {
+            const countryFilter = document.getElementById('country-filter').value;
+            const typeFilter = document.getElementById('type-filter').value;
+
+            const filteredData = allDestinations.filter(dest => {
+                const countryMatch = countryFilter === "Please select a country" || dest[1] === countryFilter || countryFilter === "";
+
+                const typeMatch = typeFilter === "Please select one" || dest[2] === typeFilter || typeFilter === "";
+
+                return countryMatch && typeMatch;
+            });
+
+            updateDestinationTable(filteredData);
+        }
+
+        function clearFilters() {
+            document.getElementById('country-filter').value = '';
+            document.getElementById('type-filter').value = '';
+            updateDestinationTable(allDestinations); // Clearing filters triggers an update to show all destinations
+        }
+
+        function updateDestinationTable(data) {
+            const tableBody = document.getElementById('destinations-list');
+            tableBody.innerHTML = '';
+
+            if (data.length === 0) {
+                // Display a message when there are no filtered results
+                const noResultsRow = `<tr><td colspan="5">No matching destinations found.</td></tr>`;
+                tableBody.innerHTML = noResultsRow;
+            } else {
+                data.forEach(dest => {
+                    const row = `<tr>
+                        <td>
+                        <details>
+                            <summary>${dest[0]}</summary>
+                            <p>Review: ${dest[3] || 'No review available.'}</p>
+                        </details>
+                        </td>
+                        <td>${dest[1]}</td> <!-- Country -->
+                        <td>${dest[2]}</td> <!-- Destination Type -->
+                        <td>${dest[4] || 0}</td> <!-- Votes, assuming the 5th element is vote count -->
+                        <td><button onclick="voteForDestination('${dest[1]}', '${dest[0]}')">Vote</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            }
+        }
+
+        function voteForDestination(country, destinationName) {
+            const userId = localStorage.getItem('userId');
+            // Check if the user has already voted for this destination
+            fetch(`/checkVote/${userId}/${destinationName}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.hasVoted) {
+                        alert('You have already voted for this destination.');
+                    } else {
+                        // If the user has not voted, proceed with the vote
+                        const confirmation = window.confirm(`Are you sure you want to vote for ${destinationName}?`);
+
+                        if (confirmation) {
+                            console.log('Confirmation received. Proceeding with vote.');
+                            fetch(`/vote/${userId}/${country}/${destinationName}`, { method: 'POST' })
+                                .then(response => response.json())
+                                .then(result => {
+                                    alert(result.message); // successful
+                                    fetchDestinations();
+                                })
+                                .catch(error => console.error('Error voting:', error));
+                        } else {
+                            // If the user cancels the vote
+                            alert('Vote canceled.');
+                        }
+                    }
+                })
+                .catch(error => console.error('Error checking vote status:', error));
+        }
+
+        // Function to view user voting history
+        function getVotingHistory() {
+            const userId = document.getElementById('user-id').value;
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
+            }
+
+            fetch('/getUserHistory', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.no_users) {
+                    console.log('No voting History')
+                    alert('No voting history found for this User ID');
+                    return;
+                }
+                // Update the UI with the voting history
+                if (data.voting_history){
+                    console.log('Voting history:', data.voting_history);
+                    updateDestinationTable(data.voting_history);
+                    }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+    </script>
+</body>
+</html>
+
+
